@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="script.js"></script>
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico" />
+  <title>Städteliste</title>
+</head>
+
+<style>
+  body {
+    margin: 0;
+  }
+  
+  #map-container {
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  #zoom-buttons {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 1;
+    pointer-events: auto;
+  }
+
+  #zoom-buttons button {
+    display: block;
+    width: 32px;
+    height: 32px;
+    margin-bottom: 5px;
+    border: none;
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.4);
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  #zoom-buttons button:first-child {
+    margin-bottom: 0;
+  }
+
+  #pointer-toggle {
+    display: block;
+    width: 32px;
+    height: 32px;
+    margin-bottom: 5px;
+    border: none;
+    border-radius: 4px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+    background-color: #fff;
+    box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.4);
+  }
+
+  #pointer-toggle.active {
+    background-color: #ccc;
+  }
+
+  .window {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    width: 400px;
+    height: 200px;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    opacity: 0.8;
+  }
+
+  #infos {
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  
+  .hide-window-button {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background-color: #ccc;
+    font-size: 12px;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #additional-buttons {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 1;
+    pointer-events: auto;
+  }
+
+  #additional-buttons button {
+    display: block;
+    width: 32px;
+    height: 32px;
+    margin-bottom: 5px;
+    border: none;
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.4);
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+</style>
+
+<div id="map-container">
+  <object type="image/svg+xml" data="world.svg" id="map"></object>
+  <div id="zoom-buttons">
+    <button id="zoom-in">+</button>
+    <button id="zoom-out">-</button>
+    <button id="pointer-toggle">P</button>
+  </div>
+
+  <div class="window">
+    <box id="infos">
+      <h2 id="city">Stadt: </h2>
+      <h4 id="country">Land: </h4>
+      <h4 id="population">Einwohner: </h4>
+      <h4 id="info">Infos: </h4>
+      <button class="hide-window-button" onclick="hideWindow()">X</button>
+    </box>
+  </div>
+
+  <div id="additional-buttons">
+    <button id="go-to-default">🌎</button>
+    <button id="zoom-to-europe">🇪🇺</button>
+    <button id="zoom-to-austria">🇦🇹</button>
+    <button id="go-to-cities" onclick="goToCities()">🏙️</button>
+  </div>
+</div>
+
+<script>
+  const map = document.getElementById("map");
+  const zoomInBtn = document.getElementById("zoom-in");
+  const zoomOutBtn = document.getElementById("zoom-out");
+  const pointerToggleBtn = document.getElementById("pointer-toggle");
+  const mapContainer = document.getElementById("map-container");
+  const windowContainer = document.querySelector(".window");
+  const goToDefaultBtn = document.getElementById("go-to-default");
+  const zoomToEuropeBtn = document.getElementById("zoom-to-europe");
+  const zoomToAustriaBtn = document.getElementById("zoom-to-austria");
+  const goToCitiesBtn = document.getElementById("go-to-cities");
+
+  let currentScale = 1;
+  let mapX = 0;
+  let mapY = 0;
+  let pointerEventsEnabled = false;
+
+  function zoom(scale) {
+    const newScale = currentScale * scale;
+    const minScale = 0.5; // Adjust the minimum scale as needed
+    const maxScale = 35; // Adjust the maximum scale as needed
+
+    if (newScale >= minScale && newScale <= maxScale) {
+      currentScale = newScale;
+      map.style.transform = `scale(${currentScale}) translate(${mapX}px, ${mapY}px)`;
+    }
+  }
+
+  zoomInBtn.addEventListener("click", () => zoom(1.2));
+  zoomOutBtn.addEventListener("click", () => zoom(0.8));
+
+  pointerToggleBtn.addEventListener("click", () => {
+    pointerEventsEnabled = !pointerEventsEnabled;
+    map.style.pointerEvents = pointerEventsEnabled ? "all" : "none";
+    pointerToggleBtn.classList.toggle("active", pointerEventsEnabled);
+  });
+
+  mapContainer.addEventListener("mousedown", (event) => {
+    const startCoords = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+    const startMapX = mapX;
+    const startMapY = mapY;
+
+    function moveAt(event) {
+      const scaleDiff = currentScale - 1;
+      mapX = startMapX + (event.clientX - startCoords.x) / currentScale;
+      mapY = startMapY + (event.clientY - startCoords.y) / currentScale;
+      map.style.transform = `scale(${currentScale}) translate(${mapX}px, ${mapY}px)`;
+
+      // Set the move cursor
+      mapContainer.style.cursor = "move";
+    }
+
+    function stopMove() {
+      mapContainer.removeEventListener("mousemove", moveAt);
+      mapContainer.removeEventListener("mouseup", stopMove);
+
+      // Reset the cursor
+      mapContainer.style.cursor = "auto";
+    }
+
+    mapContainer.addEventListener("mousemove", moveAt);
+    mapContainer.addEventListener("mouseup", stopMove);
+  });
+
+  mapContainer.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    const delta = Math.sign(-event.deltaY);
+    zoom(delta === -1 ? 0.8 : 1.2);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "+") {
+      zoom(1.2);
+    } else if (event.key === "-") {
+      zoom(0.8);
+    }
+  });
+
+  goToDefaultBtn.addEventListener("click", () => {
+    currentScale = 1;
+    mapX = 0;
+    mapY = 0;
+    map.style.transform = `scale(${currentScale}) translate(${mapX}px, ${mapY}px)`;
+  });
+
+  zoomToEuropeBtn.addEventListener("click", () => {
+    currentScale = 4;
+    mapX = 10;
+    mapY = 235;
+    map.style.transform = `scale(${currentScale}) translate(${mapX}px, ${mapY}px)`;
+  });
+
+  zoomToAustriaBtn.addEventListener("click", () => {
+    currentScale = 17;
+    mapX = 0;
+    mapY = 230;
+    map.style.transform = `scale(${currentScale}) translate(${mapX}px, ${mapY}px)`;
+  });
+
+  function hideWindow() {
+    windowContainer.style.display = "none";
+  }
+
+  function goToCities() {
+    window.location.href = "cities.html";
+  }
+</script>
+
+</html>

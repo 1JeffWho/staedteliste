@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Information</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333333;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    #map-container {
+      display: none;
+    }
+
+    #search-bar {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 20px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    #go-back-button {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 8px 12px;
+      background-color: #ffffff;
+      color: #333333;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    th {
+      background-color: #f2f2f2;
+      text-align: left;
+      padding: 12px;
+      font-weight: bold;
+    }
+
+    td {
+      padding: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>City Map</h1>
+
+  <div id="map-container">
+    <object type="image/svg+xml" data="world.svg" id="map"></object>
+  </div>
+
+  <input type="text" id="search-bar" placeholder="Search by city name, country, population, etc.">
+
+  <table id="city-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>City</th>
+        <th>Country</th>
+        <th>Population</th>
+        <th>Info</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <button id="go-back-button">Go Back</button>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      setTimeout(function() {
+        // SVG element
+        var svgElement = document.getElementById("map").contentDocument;
+
+        // Check if the element was found
+        if (svgElement) {
+          var citiesElements = svgElement.getElementsByClassName("cities");
+          var cityTableBody = document.getElementById("city-table").getElementsByTagName("tbody")[0];
+
+          for (var i = 0; i < citiesElements.length; i++) {
+            var titleElement = citiesElements[i].getElementsByTagName("title")[0];
+            var title = titleElement.textContent;
+
+            var descElement = citiesElements[i].getElementsByTagName("desc")[0];
+            var desc = descElement.textContent;
+
+            var countryMatch = desc.match(/Land:\s*([^|]+)/);
+            var country = countryMatch ? countryMatch[1].trim() : "";
+            var populationMatch = desc.match(/Einw.:\s*([^|]+)/);
+            var population = populationMatch ? populationMatch[1].trim() : "";
+            var infoMatch = desc.match(/Infos:\s*([^]+)/);
+            var info = infoMatch ? infoMatch[1].trim() : "";
+
+            var cityParts = title.split(". ");
+            var cityNumber = cityParts.length > 0 ? cityParts[0] : "";
+            var cityName = cityParts.length > 1 ? cityParts.slice(1).join(". ") : title;
+
+            var newRow = cityTableBody.insertRow();
+            newRow.insertCell().textContent = cityNumber;
+            newRow.insertCell().textContent = cityName;
+            newRow.insertCell().textContent = country;
+            newRow.insertCell().textContent = population;
+            newRow.insertCell().textContent = info;
+          }
+        } else {
+          console.error("The SVG element was not found.");
+        }
+      }, 100);
+    });
+
+    document.getElementById("search-bar").addEventListener("input", function() {
+      var query = this.value.toLowerCase().trim();
+      var rows = document.querySelectorAll("#city-table tbody tr");
+
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var cells = row.getElementsByTagName("td");
+        var match = false;
+
+        for (var j = 0; j < cells.length; j++) {
+          var cell = cells[j];
+
+          if (cell.textContent.toLowerCase().indexOf(query) > -1) {
+            match = true;
+            break;
+          }
+        }
+
+        row.style.display = match ? "" : "none";
+      }
+
+      var goBackButton = document.getElementById("go-back-button");
+      goBackButton.style.display = query ? "" : "none";
+    });
+
+    document.getElementById("go-back-button").addEventListener("click", function() {
+      history.back();
+    });
+  </script>
+</body>
+</html>
